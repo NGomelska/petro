@@ -1,0 +1,400 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Вантажний потяг</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@800;900&display=swap">
+<style>
+/* Layout: небо й пагорби зверху, рейки посередині, лоток із трьома вантажами внизу. Одна світла тема свідомо — денна залізниця. */
+:root {
+  --sky: #9fd8ff;
+  --sky-low: #dff3ff;
+  --hill: #8fd16a;
+  --hill-dark: #6fb850;
+  --ground: #c99a62;
+  --ink: #2d2a3a;
+  --cream: #fffaf2;
+  --pop: #ff6f61;
+  --mint: #6cc7a8;
+  --font: "Nunito", "Trebuchet MS", system-ui, sans-serif;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body {
+  margin: 0; background: var(--sky); color: var(--ink); font-family: var(--font); overflow: hidden;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+}
+#app {
+  position: relative; height: 100%; display: grid; grid-template-rows: auto 1fr auto; overflow: hidden;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 10px 0;
+  background: linear-gradient(var(--sky) 0%, var(--sky-low) 48%, var(--hill) 48%, var(--hill-dark) 62%, var(--ground) 62%);
+}
+header { display: flex; justify-content: space-between; align-items: center; gap: 10px; position: relative; z-index: 5; }
+.pill { background: var(--cream); border: 3px solid var(--ink); border-radius: 999px; padding: 4px 12px; font-weight: 900; font-size: 22px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.iconbtn { width: 48px; height: 48px; border-radius: 50%; border: 3px solid var(--ink); background: var(--cream); font-size: 22px; cursor: pointer; }
+.iconbtn:focus-visible, .cargo:focus-visible, .play:focus-visible { outline: 4px solid var(--pop); outline-offset: 3px; }
+
+#world { position: relative; min-height: 0; margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))) calc(-1 * max(16px, env(safe-area-inset-right, 0px))); }
+.sun { position: absolute; right: 8%; top: 4%; width: 64px; height: 64px; border-radius: 50%; background: #ffd23f; border: 3px solid var(--ink); box-shadow: 0 0 0 10px rgba(255,210,63,.3); }
+.cloud { position: absolute; font-size: 54px; opacity: .95; animation: drift linear infinite; }
+.hills { position: absolute; left: 0; right: 0; top: 30%; height: 22%; }
+#track { position: absolute; left: 0; right: 0; top: 64%; height: 26px; }
+#track .rail { position: absolute; left: 0; right: 0; height: 6px; background: #7a7f8c; border: 2px solid var(--ink); border-radius: 3px; }
+#track .rail.a { top: 0; } #track .rail.b { top: 14px; }
+#track .sleepers { position: absolute; left: 0; right: 0; top: -4px; height: 30px; background: repeating-linear-gradient(90deg, #8b5a35 0 14px, transparent 14px 34px); z-index: -1; }
+#train { position: absolute; top: 64%; left: 0; display: flex; align-items: flex-end; transform: translate(var(--x, 0px), -92%); cursor: grab; will-change: transform; }
+#train.drag { cursor: grabbing; }
+#train svg { display: block; overflow: visible; }
+.wagon { position: relative; }
+.wagon .slots span { position: absolute; width: calc(var(--u) * 48px); height: calc(var(--u) * 48px); transform: translate(-50%, -50%); animation: land .3s ease-out; }
+.wagon .slots svg, .fly svg, .mark svg { width: 100%; height: 100%; display: block; }
+.wagon .arrow { position: absolute; left: 50%; top: calc(var(--u) * -40px); width: calc(var(--u) * 92px); filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 6px #fff); transform: translateX(-50%); animation: bob .8s ease-in-out infinite; pointer-events: none; }
+.wagon .arrow svg { width: 100%; display: block; }
+.cargo svg { width: 72%; height: 72%; display: block; }
+.mark { position: fixed; z-index: 22; width: 84px; height: 84px; pointer-events: none; transform: translate(-50%, -50%); }
+@keyframes bob { 0%,100% { margin-top: 0; } 50% { margin-top: -18px; } }
+.hint { position: absolute; left: 50%; top: 82%; transform: translateX(-50%); font-weight: 900; font-size: 18px; background: rgba(255,250,242,.85); border-radius: 999px; padding: 4px 14px; white-space: nowrap; transition: opacity .4s; }
+
+#tray { display: flex; justify-content: center; gap: clamp(10px, 4vw, 22px); padding-block: 12px calc(18px + env(safe-area-inset-bottom, 0px)); position: relative; z-index: 5; }
+.cargo {
+  width: clamp(92px, 27vw, 120px); aspect-ratio: 1; border-radius: 28px; border: 4px solid var(--ink); background: var(--cream);
+  font-size: clamp(54px, 16vw, 72px); line-height: 1; cursor: pointer; box-shadow: 0 6px 0 var(--ink); display: grid; place-items: center; padding: 0;
+  animation: popin .3s cubic-bezier(.3,1.6,.5,1);
+}
+.cargo:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--ink); }
+.cargo.gone { visibility: hidden; }
+.cargo:disabled { opacity: .45; }
+.fly { position: fixed; z-index: 20; width: 80px; height: 80px; pointer-events: none; transform: translate(-50%, -50%); }
+#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4; }
+
+#start { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; align-content: center; gap: 16px; background: rgba(223,243,255,.95); text-align: center; padding: 20px; }
+#start h1 { margin: 0; font-size: clamp(38px, 11vw, 60px); font-weight: 900; line-height: 1.05; text-wrap: balance; }
+#start p { margin: 0; font-size: 18px; max-width: 30ch; }
+#start .big { font-size: 96px; line-height: 1; }
+.play { font: 900 30px/1 var(--font); color: var(--cream); background: var(--pop); border: 4px solid var(--ink); border-radius: 999px; padding: 18px 40px; box-shadow: 0 7px 0 var(--ink); cursor: pointer; }
+.play:active { transform: translateY(5px); box-shadow: 0 2px 0 var(--ink); }
+
+#dog { transform-box: fill-box; transform-origin: 50% 100%; }
+#dog.bark { animation: bark .5s ease; }
+#loco.toot { animation: toot .5s ease; transform-origin: 50% 100%; transform-box: fill-box; }
+@keyframes drift { from { transform: translateX(-120px); } to { transform: translateX(110vw); } }
+@keyframes land { from { transform: translate(-50%, -160%) scale(.6); } to { transform: translate(-50%, -50%) scale(1); } }
+@keyframes popin { from { transform: scale(.3); } to { transform: scale(1); } }
+@keyframes bark { 0%,100% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-14%) rotate(-8deg); } 60% { transform: translateY(-6%) rotate(6deg); } }
+@keyframes toot { 0%,100% { transform: scale(1); } 40% { transform: scale(1.04, .95); } }
+@media (prefers-reduced-motion: reduce) { .cloud { animation: none; } }
+</style>
+
+<div id="app">
+  <header>
+    <span class="pill" id="trips" aria-label="Поїздок">🚂 0</span>
+    <button class="iconbtn" id="snd" aria-label="Звук увімкнено">🔊</button>
+  </header>
+
+  <div id="world">
+    <div class="sun"></div>
+    <div class="cloud" style="top:6%;animation-duration:70s;animation-delay:-20s">☁️</div>
+    <div class="cloud" style="top:18%;font-size:40px;animation-duration:95s;animation-delay:-60s">☁️</div>
+    <svg class="hills" viewBox="0 0 400 100" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 100 Q60 20 130 70 T260 50 T400 60 V100Z" fill="#7cc65a" stroke="#2d2a3a" stroke-width="3"/>
+      <path d="M0 100 Q90 50 180 85 T400 80 V100Z" fill="#8fd16a"/>
+    </svg>
+    <div id="track"><div class="sleepers"></div><div class="rail a"></div><div class="rail b"></div></div>
+    <div id="train" aria-label="Потяг — можна тягати пальцем"></div>
+    <div class="hint" id="hint">👆 Тягни потяг пальцем</div>
+  </div>
+
+  <div id="tray" aria-label="Вантажі"></div>
+  <canvas id="fx"></canvas>
+
+  <div id="start">
+    <div class="big">🚂🐶</div>
+    <h1>Вантажний потяг</h1>
+    <p>Вибирай предмет такого ж кольору, як вагон — песик повезе! Потяг можна тягати пальцем.</p>
+    <button class="play" id="go">Поїхали! ▶</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  /* гра в кольори: вагон має колір, з трьох предметів треба вибрати предмет того самого кольору */
+  const COLS = [
+    { k: "red", c: "#ff5a4f", n: "червоний" }, { k: "blue", c: "#3b7dd8", n: "синій" },
+    { k: "yellow", c: "#ffd23f", n: "жовтий" }, { k: "green", c: "#4cb860", n: "зелений" },
+    { k: "orange", c: "#ffa94d", n: "помаранчевий" }
+  ];
+  const ink = "#2d2a3a";
+  const SHAPES = {
+    ball: { n: "м'ячик", svg: c => `<circle cx="50" cy="50" r="40" fill="${c}" stroke="${ink}" stroke-width="5"/><path d="M50 22 l14 10 -5 16 h-18 l-5 -16z" fill="#fff" stroke="${ink}" stroke-width="3"/><path d="M20 40 q8 4 12 10 M80 40 q-8 4 -12 10 M38 82 q4 -10 12 -12 q8 2 12 12" fill="none" stroke="${ink}" stroke-width="3"/><circle cx="36" cy="32" r="6" fill="#fff" opacity=".5"/>` },
+    cube: { n: "кубик", svg: c => `<path d="M50 12 L86 30 V70 L50 88 L14 70 V30Z" fill="${c}" stroke="${ink}" stroke-width="5" stroke-linejoin="round"/><path d="M14 30 L50 48 L86 30 M50 48 V88" fill="none" stroke="${ink}" stroke-width="4"/><path d="M50 12 L86 30 L50 48 L14 30Z" fill="#fff" opacity=".35"/>` },
+    car: { n: "машинка", svg: c => `<path d="M10 64 V50 q0 -6 6 -8 l12 -4 l10 -14 q3 -4 8 -4 h18 q5 0 8 4 l10 14 h4 q8 0 8 8 v18z" fill="${c}" stroke="${ink}" stroke-width="5" stroke-linejoin="round"/><path d="M42 26 h10 v14 h-18z M58 26 h8 l8 14 h-16z" fill="#cdeaff" stroke="${ink}" stroke-width="3"/><circle cx="30" cy="68" r="11" fill="#55586a" stroke="${ink}" stroke-width="4"/><circle cx="72" cy="68" r="11" fill="#55586a" stroke="${ink}" stroke-width="4"/>` },
+    balloon: { n: "кулька", svg: c => `<ellipse cx="50" cy="40" rx="28" ry="32" fill="${c}" stroke="${ink}" stroke-width="5"/><path d="M46 72 h8 l-4 6z" fill="${c}" stroke="${ink}" stroke-width="3"/><path d="M50 78 q-8 8 0 14" fill="none" stroke="${ink}" stroke-width="3"/><ellipse cx="40" cy="28" rx="6" ry="10" fill="#fff" opacity=".5"/>` },
+    star: { n: "зірочка", svg: c => `<path d="M50 8 L61 36 L91 37 L67 56 L76 86 L50 69 L24 86 L33 56 L9 37 L39 36Z" fill="${c}" stroke="${ink}" stroke-width="5" stroke-linejoin="round"/><circle cx="43" cy="50" r="3.5" fill="${ink}"/><circle cx="57" cy="50" r="3.5" fill="${ink}"/><path d="M44 60 q6 5 12 0" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>` },
+    bucket: { n: "відерце", svg: c => `<path d="M24 34 h52 l-7 52 h-38z" fill="${c}" stroke="${ink}" stroke-width="5" stroke-linejoin="round"/><ellipse cx="50" cy="34" rx="26" ry="7" fill="#fff" opacity=".6" stroke="${ink}" stroke-width="4"/><path d="M24 34 q26 -36 52 0" fill="none" stroke="${ink}" stroke-width="4"/>` }
+  };
+  const SKEYS = Object.keys(SHAPES);
+  const itemSVG = (shape, col) => `<svg viewBox="0 0 100 100" aria-hidden="true">${SHAPES[shape].svg(col.c)}</svg>`;
+  const colOf = k => COLS.find(c => c.k === k);
+  const MARK_OK = `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="#fff" stroke="#2fa84f" stroke-width="8"/><path d="M28 52 L44 68 L74 34" fill="none" stroke="#2fa84f" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const MARK_NO = `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="#fff" stroke="#e8453c" stroke-width="8"/><path d="M32 32 L68 68 M68 32 L32 68" fill="none" stroke="#e8453c" stroke-width="12" stroke-linecap="round"/></svg>`;
+  function mark(btn, ok) {
+    const r = btn.getBoundingClientRect(), m = document.createElement("div");
+    m.className = "mark"; m.innerHTML = ok ? MARK_OK : MARK_NO;
+    m.style.left = r.left + r.width / 2 + "px"; m.style.top = r.top + r.height / 2 + "px";
+    document.body.appendChild(m);
+    m.animate([{ transform: "translate(-50%,-50%) scale(.3)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1.1)", opacity: 1, offset: .3 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .75 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 0 }], { duration: 900 }).onfinish = () => m.remove();
+  }
+  const WAGONS = 5, PER = 2;                      // 5 вагонів по 2 вантажі; потяг довший за екран і сам під'їжджає до порожнього вагона
+  const SLOT = [[32, 40], [68, 40]];
+  const wagonCol = i => COLS[(trips + i) % COLS.length];
+  const world = $("#world"), train = $("#train");
+
+  /* ---------- малюємо потяг ---------- */
+  let u = 1;                                       // масштаб під ширину екрана
+  function wagonSVG(color) {
+    return `<svg width="${120 * u}" height="${120 * u}" viewBox="0 0 120 120">
+      <rect x="0" y="82" width="8" height="8" fill="#2d2a3a"/>
+      <rect x="6" y="48" width="108" height="42" rx="6" fill="${color}" stroke="#2d2a3a" stroke-width="4"/>
+      <path d="M8 62 h104 M8 76 h104" stroke="#2d2a3a" stroke-width="2" opacity=".35"/>
+      <rect x="10" y="88" width="100" height="8" fill="#2d2a3a"/>
+      ${wheel(30, 102, 12)}${wheel(90, 102, 12)}
+    </svg>`;
+  }
+  function wheel(cx, cy, r) {
+    return `<g class="wh" data-cx="${cx}" data-cy="${cy}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="#55586a" stroke="#2d2a3a" stroke-width="4"/>
+      <path d="M${cx - r + 3} ${cy} H${cx + r - 3} M${cx} ${cy - r + 3} V${cy + r - 3}" stroke="#d0d4de" stroke-width="3"/><circle cx="${cx}" cy="${cy}" r="3.5" fill="#d0d4de"/></g>`;
+  }
+  function locoSVG() {
+    return `<svg id="loco" width="${165 * u}" height="${120 * u}" viewBox="0 0 165 120">
+      <rect x="0" y="82" width="8" height="8" fill="#2d2a3a"/>
+      <rect x="62" y="46" width="84" height="44" rx="18" fill="#e8453c" stroke="#2d2a3a" stroke-width="4"/>
+      <path d="M86 47 v42 M110 47 v42" stroke="#ffd23f" stroke-width="5"/>
+      <circle cx="98" cy="46" r="9" fill="#ffd23f" stroke="#2d2a3a" stroke-width="3"/>
+      <path id="chim" d="M120 46 L118 24 h-6 v-8 h30 v8 h-6 L134 46z" fill="#3a3d4a" stroke="#2d2a3a" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="148" cy="60" r="8" fill="#fff6b0" stroke="#2d2a3a" stroke-width="3"/>
+      <path d="M146 86 L162 104 H140z" fill="#ffd23f" stroke="#2d2a3a" stroke-width="3" stroke-linejoin="round"/>
+      <rect x="8" y="22" width="60" height="68" rx="6" fill="#2f6fd6" stroke="#2d2a3a" stroke-width="4"/>
+      <rect x="2" y="12" width="72" height="14" rx="5" fill="#1f4fa3" stroke="#2d2a3a" stroke-width="4"/>
+      <rect x="18" y="32" width="40" height="32" rx="5" fill="#cdeaff" stroke="#2d2a3a" stroke-width="3"/>
+      <g id="dog">
+        <ellipse cx="27" cy="50" rx="6" ry="11" fill="#7a4a2a" stroke="#2d2a3a" stroke-width="2.5" transform="rotate(18 27 50)"/>
+        <ellipse cx="51" cy="50" rx="6" ry="11" fill="#7a4a2a" stroke="#2d2a3a" stroke-width="2.5" transform="rotate(-18 51 50)"/>
+        <circle cx="39" cy="50" r="12.5" fill="#c98a4b" stroke="#2d2a3a" stroke-width="2.5"/>
+        <ellipse cx="39" cy="56" rx="7" ry="5.5" fill="#f2d3ae"/>
+        <ellipse cx="39" cy="53" rx="3.2" ry="2.4" fill="#2d2a3a"/>
+        <circle cx="34" cy="47" r="2.2" fill="#2d2a3a"/><circle cx="44" cy="47" r="2.2" fill="#2d2a3a"/>
+        <path d="M27 40 q12 -12 24 0 v3 h-24z" fill="#1f4fa3" stroke="#2d2a3a" stroke-width="2.5"/><rect x="36" y="39" width="20" height="4" rx="2" fill="#1f4fa3" stroke="#2d2a3a" stroke-width="2"/>
+      </g>
+      <rect x="6" y="88" width="142" height="8" fill="#2d2a3a"/>
+      ${wheel(36, 100, 17)}${wheel(92, 104, 13)}${wheel(124, 104, 13)}
+    </svg>`;
+  }
+  function buildTrain() {
+    u = Math.max(.62, Math.min(1, world.clientWidth / 470));
+    train.style.setProperty("--u", u);
+    train.innerHTML = Array.from({ length: WAGONS }, (_, i) => `<div class="wagon" data-w="${i}">${wagonSVG(wagonCol(i).c)}<div class="slots"></div><div class="arrow" hidden><svg viewBox="0 0 60 60"><path d="M18 6 h24 v22 h12 L30 54 L6 28 h12z" fill="${wagonCol(i).c}" stroke="#2d2a3a" stroke-width="4" stroke-linejoin="round"/></svg></div></div>`).join("") + locoSVG();
+    $("#loco").addEventListener("pointerdown", ev => {
+      const onDog = ev.target.closest("#dog");
+      if (onDog) { bark(); $("#dog").classList.remove("bark"); void $("#dog").getBBox(); $("#dog").classList.add("bark"); say("Гав!"); }
+      else { whistle(); puff(12); const l = $("#loco"); l.classList.remove("toot"); void l.getBBox(); l.classList.add("toot"); }
+    });
+  }
+
+  /* ---------- стан ---------- */
+  let x = 0, trips = 0, loaded = 0, moving = false, sound = true;
+  try { trips = +localStorage.getItem("vp_trips") || 0; } catch (e) {}
+  const trainW = () => train.getBoundingClientRect().width;
+  const home = () => world.clientWidth - trainW() + 30 * u;    // паровоз справа на екрані, вагони тягнуться вліво за край
+  function setX(nx, spin = true) {
+    const dx = nx - x; x = nx; train.style.setProperty("--x", x + "px");
+    if (spin && dx) { rot += dx / (12 * u) * 57; train.querySelectorAll(".wh").forEach(w => w.setAttribute("transform", `rotate(${rot} ${w.dataset.cx} ${w.dataset.cy})`)); chuffBy(Math.abs(dx)); }
+  }
+  let rot = 0, chuffAcc = 0;
+  function chuffBy(d) { chuffAcc += d; if (chuffAcc > 70) { chuffAcc = 0; chuff(); puff(2); } }
+
+  /* ---------- тягнути пальцем ---------- */
+  let drag = null;
+  train.addEventListener("pointerdown", ev => {
+    if (moving || rolling) return;
+    drag = { id: ev.pointerId, sx: ev.clientX, x0: x, moved: false };
+    train.setPointerCapture(ev.pointerId); train.classList.add("drag");
+  });
+  train.addEventListener("pointermove", ev => {
+    if (!drag || ev.pointerId !== drag.id) return;
+    const w = trainW(), W = world.clientWidth, nx = Math.max(W - w - 40, Math.min(W - 120 * u, drag.x0 + ev.clientX - drag.sx));
+    if (Math.abs(ev.clientX - drag.sx) > 6) { drag.moved = true; $("#hint").style.opacity = 0; }
+    setX(nx);
+  });
+  const endDrag = () => { drag = null; train.classList.remove("drag"); };
+  train.addEventListener("pointerup", endDrag); train.addEventListener("pointercancel", endDrag);
+
+  /* ---------- вантажі: вибрати предмет кольору вагона ---------- */
+  const targetIdx = () => WAGONS - 1 - Math.floor(loaded / PER);
+  function fillTray() {
+    if (loaded >= WAGONS * PER) return;
+    const ti = targetIdx(), tc = wagonCol(ti);
+    train.querySelectorAll(".arrow").forEach(x => x.hidden = +x.parentNode.dataset.w !== ti);
+    const others = COLS.filter(c => c.k !== tc.k).sort(() => Math.random() - .5).slice(0, 2);
+    const shapes = SKEYS.slice().sort(() => Math.random() - .5).slice(0, 3);
+    const items = [tc, ...others].map((c, i) => ({ c, s: shapes[i] })).sort(() => Math.random() - .5);
+    $("#tray").innerHTML = items.map(it => `<button class="cargo" data-s="${it.s}" data-c="${it.c.k}" aria-label="${it.c.n} ${SHAPES[it.s].n}">${itemSVG(it.s, it.c)}</button>`).join("");
+  }
+  function slotRect(n) {
+    const w = train.querySelector(`.wagon[data-w="${WAGONS - 1 - Math.floor(n / PER)}"]`), r = w.getBoundingClientRect(), [px, py] = SLOT[n % PER];
+    return { w, px, py, x: r.left + r.width * px / 100, y: r.top + r.height * py / 100 };
+  }
+  $("#tray").addEventListener("pointerdown", ev => {
+    const b = ev.target.closest(".cargo"); if (!b || b.disabled || moving || rolling || b.classList.contains("gone") || loaded >= WAGONS * PER) return;
+    ev.preventDefault();
+    const tc = wagonCol(targetIdx()), col = colOf(b.dataset.c), sh = b.dataset.s;
+    if (col.k !== tc.k) {                       // не той колір — червоний хрестик, без програшу
+      mark(b, false); boop();
+      b.animate([{ transform: "rotate(0)" }, { transform: "rotate(-12deg)" }, { transform: "rotate(12deg)" }, { transform: "rotate(0)" }], { duration: 420 });
+      const ar = train.querySelector(`.wagon[data-w="${targetIdx()}"] .arrow`);
+      if (ar) ar.animate([{ transform: "translateX(-50%) scale(1)" }, { transform: "translateX(-50%) scale(1.35)" }, { transform: "translateX(-50%) scale(1)" }], { duration: 500 });
+      return;
+    }
+    mark(b, true); ding();
+    const n = loaded++, r = b.getBoundingClientRect(), t = slotRect(n);
+    b.classList.add("gone"); whoosh();
+    document.querySelectorAll(".cargo").forEach(c => c.disabled = true);
+    const f = document.createElement("div"); f.className = "fly"; f.innerHTML = itemSVG(sh, col);
+    const sx = r.left + r.width / 2, sy = r.top + r.height / 2; f.style.left = sx + "px"; f.style.top = sy + "px"; document.body.appendChild(f);
+    const dx = t.x - sx, dy = t.y - sy;
+    const anim = f.animate([
+      { transform: "translate(-50%,-50%) scale(1)" },
+      { transform: `translate(calc(-50% + ${dx * .5}px), calc(-50% + ${dy * .5 - 120}px)) scale(1.1) rotate(-20deg)`, offset: .5 },
+      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(${.6 * u + .2})` }
+    ], { duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 10 : 600, easing: "ease-in" });
+    anim.onfinish = () => {
+      f.remove(); thunk();
+      const sp = document.createElement("span"); sp.innerHTML = itemSVG(sh, col); sp.style.left = t.px + "%"; sp.style.top = t.py + "%";
+      t.w.querySelector(".slots").appendChild(sp);
+      if (loaded >= WAGONS * PER) { train.querySelectorAll(".arrow").forEach(x => x.hidden = true); setTimeout(depart, 350); }
+      else if (loaded % PER === 0) setTimeout(() => { showNext(); setTimeout(fillTray, 950); }, 250);
+      else setTimeout(fillTray, 150);
+    };
+  });
+
+  /* наступний порожній вагон за краєм екрана — потяг сам під'їжджає вперед, щоб він став по центру */
+  let rolling = false;
+  function showNext() {
+    if (moving || drag) return;
+    const w = train.querySelector(`.wagon[data-w="${WAGONS - 1 - Math.floor(loaded / PER)}"]`); if (!w) return;
+    const r = w.getBoundingClientRect(), W = world.clientWidth;
+    if (r.left > 20 && r.right < W - 20) return;
+    const x0 = x, x1 = x + (W / 2 - (r.left + r.width / 2)), t0 = performance.now(), D = 900;
+    rolling = true; whistle(.4);
+    const step = now => { const k = Math.min(1, (now - t0) / D), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; setX(x0 + (x1 - x0) * e); if (Math.random() < .3) puff(1); if (k < 1) requestAnimationFrame(step); else rolling = false; };
+    requestAnimationFrame(step);
+  }
+
+  /* ---------- поїздка: ту-ту, за край екрана і назад порожнім ---------- */
+  function depart() {
+    moving = true; endDrag();
+    document.querySelectorAll(".cargo").forEach(c => c.disabled = true);
+    whistle(); say("Ту-ту! Поїхали!"); puff(14);
+    const W = world.clientWidth, x0 = x, x1 = W + 40, t0 = performance.now(), D = 2600;
+    const go = now => {
+      const k = Math.min(1, (now - t0) / D), e = k * k;
+      setX(x0 + (x1 - x0) * e); if (Math.random() < .5) puff(1);
+      if (k < 1) requestAnimationFrame(go);
+      else {
+        trips++; try { localStorage.setItem("vp_trips", trips); } catch (e) {}
+        $("#trips").textContent = `🚂 ${trips}`;
+        loaded = 0; buildTrain(); fireworks();
+        x = -trainW() - 40; setX(x, false);
+        const xs = x, xe = home(), t1 = performance.now(), D2 = 2200;
+        const back = now2 => {
+          const q = Math.min(1, (now2 - t1) / D2), ee = 1 - (1 - q) * (1 - q);
+          setX(xs + (xe - xs) * ee); if (Math.random() < .3) puff(1);
+          if (q < 1) requestAnimationFrame(back); else { moving = false; fillTray(); whistle(.7); }
+        };
+        requestAnimationFrame(back);
+      }
+    };
+    requestAnimationFrame(go);
+  }
+
+  /* ---------- дим і салют на canvas ---------- */
+  const cv = $("#fx"), cx = cv.getContext("2d"); let parts = [], raf = 0;
+  const fit = () => { const k = devicePixelRatio || 1; cv.width = innerWidth * k; cv.height = innerHeight * k; cx.setTransform(k, 0, 0, k, 0, 0); };
+  fit();
+  function puff(n) {
+    const c = $("#chim"); if (!c) return; const r = c.getBoundingClientRect();
+    for (let i = 0; i < n; i++) parts.push({ x: r.left + r.width / 2 + (Math.random() - .5) * 8, y: r.top, vx: (Math.random() - .7) * 1.4, vy: -1.2 - Math.random() * 1.6, r: 6 + Math.random() * 8 * u, grow: .35, c: "smoke", life: 70 + Math.random() * 30 });
+    loop();
+  }
+  function fireworks() {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const cols = ["#ff6f61", "#ffd23f", "#6cc7a8", "#5aa9e6", "#ff9fb3"];
+    for (let b = 0; b < 3; b++) { const ox = innerWidth * (.25 + b * .25), oy = innerHeight * .2; for (let i = 0; i < 26; i++) { const a = i / 26 * Math.PI * 2; parts.push({ x: ox, y: oy, vx: Math.cos(a) * 4, vy: Math.sin(a) * 4, r: 4, grow: 0, c: cols[(b + i) % 5], life: 60, g: .06 }); } }
+    loop();
+  }
+  function loop() {
+    if (raf) return;
+    const step = () => {
+      cx.clearRect(0, 0, innerWidth, innerHeight);
+      parts = parts.filter(p => p.life-- > 0);
+      for (const p of parts) {
+        p.x += p.vx; p.y += p.vy; p.vy += p.g || 0; p.r += p.grow;
+        if (p.c === "smoke") { cx.globalAlpha = Math.min(.85, p.life / 60); cx.fillStyle = "#f4f6fb"; cx.strokeStyle = "rgba(45,42,58,.25)"; cx.lineWidth = 2; cx.beginPath(); cx.arc(p.x, p.y, p.r, 0, 7); cx.fill(); cx.stroke(); }
+        else { cx.globalAlpha = Math.min(1, p.life / 25); cx.fillStyle = p.c; cx.beginPath(); cx.arc(p.x, p.y, p.r, 0, 7); cx.fill(); }
+      }
+      cx.globalAlpha = 1;
+      raf = parts.length ? requestAnimationFrame(step) : 0;
+      if (!raf) cx.clearRect(0, 0, innerWidth, innerHeight);
+    };
+    raf = requestAnimationFrame(step);
+  }
+
+  /* ---------- звуки: синтезовані ---------- */
+  let ac = null, noise = null;
+  const audio = () => { if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } if (ac && ac.state === "suspended") ac.resume(); return ac; };
+  function tone(type, f1, f2, dur, vol = .2, when = 0) {
+    const a = audio(); if (!a || !sound) return;
+    const t = a.currentTime + when, o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.setValueAtTime(f1, t); o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + .05);
+  }
+  function chuff() {
+    const a = audio(); if (!a || !sound) return;
+    if (!noise) { noise = a.createBuffer(1, a.sampleRate * .3, a.sampleRate); const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+    const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain(), t = a.currentTime;
+    s.buffer = noise; f.type = "bandpass"; f.frequency.value = 700; f.Q.value = .8;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.35, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + .22);
+    s.connect(f).connect(g).connect(a.destination); s.start(t); s.stop(t + .3);
+  }
+  function whistle(len = 1) {
+    const a = audio(); if (!a || !sound) return;
+    const t = a.currentTime;
+    [[784, 0], [988, 0], [784, .42 * len], [988, .42 * len]].forEach(([f, w]) => {
+      const o = a.createOscillator(), g = a.createGain(), v = a.createOscillator(), vg = a.createGain();
+      o.type = "sine"; o.frequency.value = f; v.frequency.value = 6; vg.gain.value = 8; v.connect(vg).connect(o.frequency);
+      g.gain.setValueAtTime(.0001, t + w); g.gain.exponentialRampToValueAtTime(.16, t + w + .05); g.gain.setValueAtTime(.16, t + w + .3 * len); g.gain.exponentialRampToValueAtTime(.0001, t + w + .38 * len);
+      o.connect(g).connect(a.destination); o.start(t + w); v.start(t + w); o.stop(t + w + .45 * len); v.stop(t + w + .45 * len);
+    });
+  }
+  function bark() { tone("square", 420, 220, .13, .14); tone("square", 460, 230, .13, .14, .2); }
+  const whoosh = () => tone("triangle", 300, 900, .22, .07);
+  const boop = () => tone("sine", 300, 200, .18, .2);
+  const ding = () => { tone("sine", 880, 880, .15, .15); tone("sine", 1320, 1320, .2, .12, .08); };
+  const thunk = () => { tone("sine", 220, 90, .18, .35); tone("triangle", 600, 300, .06, .08); };
+  let voice = null;
+  function pickVoice() { try { voice = speechSynthesis.getVoices().find(v => /^uk/i.test(v.lang)) || null; } catch (e) {} }
+  try { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; } catch (e) {}
+  function say() {}                              /* без голосу — за побажанням мами */
+
+
+  /* ---------- старт ---------- */
+  $("#trips").textContent = `🚂 ${trips}`;
+  buildTrain(); fillTray();
+  requestAnimationFrame(() => setX(home(), false));
+  addEventListener("resize", () => { fit(); buildTrain(); loaded = 0; if (!moving) setX(home(), false); });
+  $("#go").addEventListener("click", () => { audio(); whistle(); puff(10); say("Ту-ту! Поїхали!"); $("#start").hidden = true; });
+  $("#snd").addEventListener("click", () => { sound = !sound; $("#snd").textContent = sound ? "🔊" : "🔈"; $("#snd").setAttribute("aria-label", sound ? "Звук увімкнено" : "Звук вимкнено"); if (!sound) try { speechSynthesis.cancel(); } catch (e) {} });
+})();
+</script>

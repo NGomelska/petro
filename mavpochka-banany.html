@@ -1,0 +1,373 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Мавпочка й банани</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@800;900&display=swap">
+<style>
+/* Layout: джунглі їдуть справа наліво, мавпочка біжить унизу, банани висять на ліанах з крон. Одна тема свідомо (мальований фон). */
+:root {
+  --ink: #5a3a26;
+  --cream: #fffaf2;
+  --pop: #ffcf3a;
+  --mint: #6cc7a8;
+  --font: "Nunito", "Trebuchet MS", system-ui, sans-serif;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body {
+  margin: 0; overflow: hidden; color: var(--ink); font-family: var(--font);
+  background: linear-gradient(#bfe8ff 0%, #e4f6ff 45%, #fff3d6 78%);
+  touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+}
+#stage { position: fixed; inset: 0; overflow: hidden; cursor: pointer; }
+.layer { position: absolute; left: 0; right: 0; background-repeat: repeat-x; background-size: auto 100%; pointer-events: none; }
+#sun { position: absolute; right: 14%; top: 18%; width: clamp(56px, 9vw, 100px); aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle, #fff6c2 0 45%, #ffe27a 46% 100%); box-shadow: 0 0 0 14px rgba(255,226,122,.25), 0 0 0 30px rgba(255,226,122,.12); }
+#clouds { top: 14%; height: 22%; }
+#hills { bottom: 12%; height: 40%; }
+#trees { bottom: 12%; height: 62%; }
+#ground { bottom: 0; height: 16%; }
+#canopy { top: 0; height: 15%; z-index: 3; }
+
+/* банан на ліані */
+.ban { position: absolute; left: 0; top: 0; width: var(--bs); z-index: 2; pointer-events: none; }
+.ban .sway { position: absolute; inset: 0; transform-origin: 50% 0; animation: sway 2.6s ease-in-out infinite alternate; }
+.ban .vine { position: absolute; left: 50%; top: 0; bottom: calc(var(--bs) * .8); width: 5px; margin-left: -2.5px; background: #4f8f3e; border-radius: 3px; transition: transform .35s ease-in; transform-origin: 50% 0; }
+.ban .fruit { position: absolute; left: -12px; right: -12px; bottom: -12px; height: calc(var(--bs) + 24px); padding: 12px; border: 0; background: none; cursor: pointer; pointer-events: auto; }
+.ban .fruit svg { width: 100%; height: 100%; display: block; pointer-events: none; }
+.ban.aim .fruit::before { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: radial-gradient(circle, rgba(255,240,150,.85), rgba(255,240,150,0) 70%); animation: glow .5s ease-in-out infinite alternate; }
+.ban.picked .fruit { visibility: hidden; }
+.ban.picked .vine { transform: scaleY(.15); }
+@keyframes sway { from { transform: rotate(-4deg); } to { transform: rotate(4deg); } }
+@keyframes glow { from { transform: scale(.9); } to { transform: scale(1.1); } }
+
+/* мавпочка */
+#monkey { position: absolute; left: 0; top: 0; z-index: 4; pointer-events: none; }
+#monkey svg { width: 100%; height: 100%; display: block; overflow: visible; transform-origin: 50% 100%; }
+#monkey g { transform-box: fill-box; transition: transform .15s; }
+#monkey .limb { transform-origin: 50% 0; }
+#monkey .tail { transform-origin: 100% 0; animation: wag .6s ease-in-out infinite alternate; }
+#monkey #held { display: none; }
+#monkey .up, #monkey.air .limb[class*=arm], #monkey.dance .limb[class*=arm] { display: none; }
+#monkey.air .up, #monkey.dance .up { display: inline; }
+#monkey.hold #held { display: inline; }
+#monkey.run svg { animation: bob .17s ease-in-out infinite alternate; }
+#monkey.run .legF, #monkey.run .armB { animation: swing .34s ease-in-out infinite alternate; }
+#monkey.run .legB, #monkey.run .armF { animation: swing .34s ease-in-out infinite alternate-reverse; }
+#monkey.air .legF { transform: rotate(-40deg); }
+#monkey.air .legB { transform: rotate(30deg); }
+#monkey.dance svg { animation: dance .5s ease-in-out infinite; }
+@keyframes bob { from { transform: translateY(0); } to { transform: translateY(-4%); } }
+@keyframes swing { from { transform: rotate(30deg); } to { transform: rotate(-30deg); } }
+@keyframes wag { from { transform: rotate(-8deg); } to { transform: rotate(10deg); } }
+@keyframes dance { 0%, 100% { transform: translateY(0) rotate(0); } 25% { transform: translateY(-14%) rotate(-8deg); } 50% { transform: translateY(0) rotate(0); } 75% { transform: translateY(-14%) rotate(8deg); } }
+
+header { position: fixed; top: 0; left: 0; right: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); pointer-events: none; }
+header > * { pointer-events: auto; }
+.pill { background: rgba(255,250,242,.92); border-radius: 999px; box-shadow: 0 2px 10px rgba(90,58,38,.15); }
+.goal { display: flex; gap: 2px; padding: 5px 10px; }
+.goal svg { width: clamp(20px, 4vw, 32px); height: clamp(20px, 4vw, 32px); transition: transform .25s, opacity .25s, filter .25s; }
+.goal svg.off { opacity: .3; filter: grayscale(1); }
+.goal svg.on { transform: scale(1.15); }
+.right { display: flex; align-items: center; gap: 10px; }
+.stars { white-space: nowrap; font-weight: 900; font-size: 22px; padding: 6px 14px; font-variant-numeric: tabular-nums; }
+.iconbtn { width: 48px; height: 48px; border-radius: 50%; border: 0; font-size: 22px; cursor: pointer; }
+.iconbtn:focus-visible, .play:focus-visible, .fruit:focus-visible { outline: 4px solid var(--mint); outline-offset: 3px; }
+
+.fly, .conf { position: fixed; left: 0; top: 0; z-index: 9; pointer-events: none; }
+.fly svg, .conf svg { width: 100%; height: 100%; display: block; }
+
+#start { position: fixed; inset: 0; z-index: 20; display: grid; grid-template-columns: minmax(0, 1fr); place-content: center; justify-items: center; gap: 10px; text-align: center; padding: 16px;
+  background: rgba(255,250,242,.82); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+#start .big { width: min(200px, 40vw); }
+#start h1 { margin: 0; font-size: clamp(30px, 7vw, 48px); font-weight: 900; }
+#start p { margin: 0 0 8px; max-width: 34ch; font-size: 18px; line-height: 1.4; }
+.play { border: 0; border-radius: 999px; padding: 16px 36px; font: 900 26px var(--font); color: var(--ink); background: var(--pop); box-shadow: 0 6px 0 #d9a520, 0 10px 18px rgba(90,58,38,.25); cursor: pointer; }
+.play:active { transform: translateY(4px); box-shadow: 0 2px 0 #d9a520; }
+@media (max-width: 480px) {
+  header { gap: 8px; }
+  .goal { min-width: 0; padding: 4px 8px; gap: 0; }
+  .goal svg { width: 6.2vw; height: 6.2vw; min-width: 0; }
+  .stars { font-size: 18px; padding: 6px 10px; }
+  .iconbtn { width: 42px; height: 42px; font-size: 19px; }
+}
+@media (prefers-reduced-motion: reduce) { .ban .sway, #monkey .tail { animation: none; } }
+</style>
+
+<div id="stage" aria-label="Джунглі — тапай на банани">
+  <div id="sun"></div>
+  <div class="layer" id="clouds"></div>
+  <div class="layer" id="hills"></div>
+  <div class="layer" id="trees"></div>
+  <div class="layer" id="ground"></div>
+  <div id="bananas"></div>
+  <div id="monkey" class="run"></div>
+  <div class="layer" id="canopy"></div>
+</div>
+
+<header>
+  <div class="goal pill" id="goal" aria-label="Зібрано бананів"></div>
+  <div class="right">
+    <div class="stars pill" id="stars">🌟 0</div>
+    <button class="iconbtn pill" id="snd" aria-label="Звук увімкнено">🔊</button>
+  </div>
+</header>
+
+<div id="start">
+  <div class="big" id="startpic"></div>
+  <h1>Мавпочка й банани</h1>
+  <p>Тапай на банан — мавпочка стрибне й схопить його! Десять бананів — свято.</p>
+  <button class="play" id="go">Біжимо! ▶</button>
+</div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const stage = $("#stage"), monkey = $("#monkey"), bananasEl = $("#bananas");
+  const ink = "#7a4a1e";
+
+  /* ---------- малюнки ---------- */
+  const BANANA = `<path d="M29 4 h7 l-1 9 z" fill="#8a5a2b" stroke="${ink}" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M30 11 C42 24 44 42 33 54 C29 58 22 58 19 54 C30 44 32 28 27 14 Z" fill="#ffd84a" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M31 20 C35 30 34 40 28 48" fill="none" stroke="#fff3a6" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="22" cy="54" r="2" fill="${ink}"/>`;
+  const bananaSVG = (n = 1) => n === 1
+    ? `<svg viewBox="0 0 60 60" aria-hidden="true">${BANANA}</svg>`
+    : `<svg viewBox="0 0 60 60" aria-hidden="true">${[-28, 28, 0].map(a => `<g transform="rotate(${a} 32 8)">${BANANA}</g>`).join("")}</svg>`;
+
+  const MONKEY = `<svg viewBox="0 0 120 150" aria-hidden="true">
+    <g class="tail"><path d="M38 110 C12 116 4 94 16 82 C24 74 34 82 28 90" fill="none" stroke="#7a4a2c" stroke-width="7" stroke-linecap="round"/></g>
+    <g class="limb legB"><rect x="44" y="104" width="14" height="30" rx="7" fill="#6b4026"/><ellipse cx="55" cy="134" rx="11" ry="6" fill="#f0c99a"/></g>
+    <g class="limb armB"><rect x="38" y="78" width="12" height="40" rx="6" fill="#6b4026"/><circle cx="44" cy="118" r="7" fill="#f0c99a"/></g>
+    <ellipse cx="60" cy="98" rx="26" ry="28" fill="#8a5636"/>
+    <ellipse cx="64" cy="102" rx="16" ry="19" fill="#f3d6ac"/>
+    <g class="limb legF"><rect x="62" y="106" width="14" height="30" rx="7" fill="#8a5636"/><ellipse cx="73" cy="136" rx="11" ry="6" fill="#f0c99a"/></g>
+    <circle cx="35" cy="50" r="12" fill="#8a5636"/><circle cx="35" cy="50" r="6.5" fill="#f0c99a"/>
+    <circle cx="95" cy="50" r="12" fill="#8a5636"/><circle cx="95" cy="50" r="6.5" fill="#f0c99a"/>
+    <circle cx="65" cy="48" r="30" fill="#8a5636"/>
+    <path d="M58 20 q4 -10 10 -2 q4 -8 8 2" fill="#8a5636"/>
+    <circle cx="58" cy="45" r="13" fill="#f3d6ac"/><circle cx="76" cy="45" r="13" fill="#f3d6ac"/>
+    <ellipse cx="68" cy="61" rx="20" ry="14" fill="#f3d6ac"/>
+    <circle cx="59" cy="45" r="5.5" fill="#2b1a10"/><circle cx="77" cy="45" r="5.5" fill="#2b1a10"/>
+    <circle cx="61" cy="43" r="1.9" fill="#fff"/><circle cx="79" cy="43" r="1.9" fill="#fff"/>
+    <circle cx="65" cy="56" r="1.6" fill="#6b4026"/><circle cx="71" cy="56" r="1.6" fill="#6b4026"/>
+    <path d="M59 63 Q68 72 77 63" fill="none" stroke="#6b4026" stroke-width="3" stroke-linecap="round"/>
+    <ellipse cx="49" cy="58" rx="6" ry="4" fill="#ff9e9e" opacity=".7"/><ellipse cx="87" cy="58" rx="6" ry="4" fill="#ff9e9e" opacity=".7"/>
+    <g class="up"><path d="M46 84 L22 24 M78 84 L102 24" stroke="#5a3420" stroke-width="15" stroke-linecap="round"/>
+      <path d="M46 84 L22 24" stroke="#6b4026" stroke-width="11" stroke-linecap="round"/><path d="M78 84 L102 24" stroke="#8a5636" stroke-width="11" stroke-linecap="round"/>
+      <circle cx="22" cy="22" r="7.5" fill="#f0c99a" stroke="#5a3420" stroke-width="2"/><circle cx="102" cy="22" r="7.5" fill="#f0c99a" stroke="#5a3420" stroke-width="2"/></g>
+    <g class="limb armF"><rect x="74" y="78" width="12" height="40" rx="6" fill="#8a5636"/><circle cx="80" cy="118" r="7" fill="#f0c99a"/></g>
+    <g id="held" transform="translate(0 -26)"><path d="M22 46 C28 2 96 2 102 46 C94 22 30 22 22 46 Z" fill="#ffd84a" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M36 22 C52 12 74 12 88 22" fill="none" stroke="#fff3a6" stroke-width="3" stroke-linecap="round"/>
+      <path d="M100 44 l5 6" stroke="#8a5a2b" stroke-width="5" stroke-linecap="round"/></g>
+  </svg>`;
+  monkey.innerHTML = MONKEY;
+  $("#startpic").innerHTML = MONKEY.replace('<g id="held"', '<g style="display:none"').replace('<g class="up">', '<g style="display:none">');
+
+  /* ---------- фон: плитки, що повторюються по горизонталі ---------- */
+  const tile = svg => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+  function palm(x, h) {
+    const cx = x + 30, cy = 600 - h;
+    const leaves = [-165, -130, -95, -55, -15, 20, 160].map(a => {
+      const r = a * Math.PI / 180, lx = cx + 58 * Math.cos(r), ly = cy + 58 * Math.sin(r) + 14;
+      return `<ellipse cx="${lx}" cy="${ly}" rx="62" ry="16" transform="rotate(${a} ${lx} ${ly})" fill="${a % 2 ? "#4fa85a" : "#5fb868"}"/>`;
+    }).join("");
+    return `<path d="M${x - 12} 600 Q${x - 4} ${600 - h / 2} ${cx - 6} ${cy} L${cx + 10} ${cy + 6} Q${x + 14} ${600 - h / 2} ${x + 14} 600Z" fill="#b07c4f"/>
+      ${leaves}<circle cx="${cx - 6}" cy="${cy + 14}" r="9" fill="#8a5a2b"/><circle cx="${cx + 9}" cy="${cy + 16}" r="9" fill="#7a4a22"/>`;
+  }
+  const bush = (x, r) => `<circle cx="${x - r * .7}" cy="${600 - r * .5}" r="${r * .7}" fill="#5bb466"/><circle cx="${x + r * .7}" cy="${600 - r * .5}" r="${r * .75}" fill="#4fa85a"/><circle cx="${x}" cy="${600 - r * .8}" r="${r}" fill="#6cc274"/>`;
+  $("#clouds").style.backgroundImage = tile(`<svg xmlns="http://www.w3.org/2000/svg" width="900" height="200" viewBox="0 0 900 200"><g fill="#fff" opacity=".9">
+    <ellipse cx="150" cy="90" rx="70" ry="28"/><ellipse cx="195" cy="70" rx="45" ry="32"/><ellipse cx="115" cy="78" rx="35" ry="24"/>
+    <ellipse cx="600" cy="130" rx="60" ry="22"/><ellipse cx="635" cy="112" rx="38" ry="26"/></g></svg>`);
+  $("#hills").style.backgroundImage = tile(`<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300">
+    <path d="M0 300 V170 C150 90 300 90 450 160 S750 230 900 140 S1100 110 1200 170 V300Z" fill="#c4e6a6"/>
+    <path d="M0 300 V220 C200 170 350 200 500 232 S850 180 1200 220 V300Z" fill="#a8d78c"/></svg>`);
+  $("#trees").style.backgroundImage = tile(`<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600">
+    ${palm(150, 470)}${bush(380, 70)}${palm(600, 390)}${bush(850, 90)}</svg>`);
+  $("#ground").style.backgroundImage = tile(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="120" viewBox="0 0 400 120">
+    <path d="M0 22 Q50 6 100 20 T200 20 T300 20 T400 22 V120 H0Z" fill="#7cc86a"/>
+    <path d="M0 52 H400 V120 H0Z" fill="#edd29c"/><path d="M0 52 H400" stroke="#d9b878" stroke-width="4"/>
+    <ellipse cx="90" cy="86" rx="10" ry="5" fill="#d9b878"/><ellipse cx="310" cy="100" rx="7" ry="4" fill="#d9b878"/>
+    <g fill="#fff"><circle cx="60" cy="30" r="5"/><circle cx="270" cy="34" r="5"/></g><g fill="#ffcf3a"><circle cx="60" cy="30" r="2.4"/><circle cx="270" cy="34" r="2.4"/></g>
+    <g fill="#ff8fa3"><circle cx="180" cy="28" r="4.5"/></g></svg>`);
+  $("#canopy").style.backgroundImage = tile(`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="140" viewBox="0 0 600 140">
+    <path d="M0 0 H600 V70 C570 110 530 110 500 80 C470 120 420 120 400 85 C370 115 330 115 300 80 C270 120 230 120 200 85 C170 115 130 115 100 80 C70 120 30 110 0 70Z" fill="#4a9e55"/>
+    <g fill="#5fb868"><circle cx="60" cy="40" r="30"/><circle cx="250" cy="34" r="34"/><circle cx="450" cy="44" r="30"/></g>
+    <g stroke="#3f8a48" stroke-width="4" fill="none" stroke-linecap="round"><path d="M150 95 q6 20 -2 34"/><path d="M350 95 q-6 18 2 30"/><path d="M540 92 q5 14 -1 24"/></g></svg>`);
+
+  /* ---------- розміри ---------- */
+  let W, H, groundY, mH, mW, homeX, speed, bs;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  function measure() {
+    W = innerWidth; H = innerHeight;
+    groundY = H * .93;
+    mH = clamp(Math.min(H * .25, W * .38), 100, 230); mW = mH * .8;
+    homeX = Math.max(W * .2, mW * .7);
+    speed = clamp(W * .1, 70, 150);
+    bs = clamp(H * .11, 60, 110);
+    stage.style.setProperty("--bs", bs + "px");
+    monkey.style.width = mW + "px"; monkey.style.height = mH + "px";
+  }
+
+  /* ---------- лічильник: 10 бананів = свято ---------- */
+  const GOAL = 10;
+  let count = 0, parties = 0, partying = false;
+  try { parties = +localStorage.getItem("mb_parties") || 0; } catch (e) {}
+  $("#goal").innerHTML = Array.from({ length: GOAL }, () => bananaSVG()).join("");
+  const slots = [...$("#goal").children];
+  function drawGoal() { slots.forEach((s, i) => { s.classList.toggle("off", i >= count); s.classList.toggle("on", i === count - 1); }); $("#goal").setAttribute("aria-label", `Зібрано бананів: ${count} з ${GOAL}`); }
+  const drawStars = () => { $("#stars").textContent = `🌟 ${parties}`; };
+
+  function addBananas(n) {
+    count += n; drawGoal();
+    if (count >= GOAL && !partying) party();
+  }
+  function party() {
+    partying = true; parties++; drawStars();
+    try { localStorage.setItem("mb_parties", parties); } catch (e) {}
+    fanfare(); confetti();
+    monkey.classList.add("dance");
+    setTimeout(() => { monkey.classList.remove("dance"); count = Math.max(0, count - GOAL); partying = false; drawGoal(); }, 2600);
+  }
+  function confetti() {
+    for (let i = 0; i < 28; i++) {
+      const el = document.createElement("div"), s = 26 + Math.random() * 30, x = Math.random() * W;
+      el.className = "conf"; el.style.width = el.style.height = s + "px"; el.innerHTML = bananaSVG(Math.random() < .2 ? 3 : 1);
+      document.body.append(el);
+      const r0 = Math.random() * 360, r1 = r0 + (Math.random() < .5 ? -1 : 1) * (240 + Math.random() * 300);
+      el.animate([{ transform: `translate(${x}px, ${-s}px) rotate(${r0}deg)` }, { transform: `translate(${x + (Math.random() - .5) * 120}px, ${H + s}px) rotate(${r1}deg)` }],
+        { duration: 1600 + Math.random() * 1200, delay: Math.random() * 500, easing: "cubic-bezier(.3,.1,.6,1)", fill: "backwards" }).onfinish = () => el.remove();
+    }
+  }
+  function flyToGoal(n, x, y) {
+    const el = document.createElement("div"), s = bs * .9;
+    el.className = "fly"; el.style.width = el.style.height = s + "px"; el.innerHTML = bananaSVG(n);
+    document.body.append(el);
+    const r = slots[Math.min(GOAL - 1, count + n - 1)].getBoundingClientRect();
+    el.animate([{ transform: `translate(${x - s / 2}px, ${y - s / 2}px) scale(1)` }, { transform: `translate(${r.left + r.width / 2 - s / 2}px, ${r.top + r.height / 2 - s / 2}px) scale(.35)` }],
+      { duration: 650, easing: "cubic-bezier(.5,0,.4,1)" }).onfinish = () => { el.remove(); ding(); addBananas(n); };
+  }
+
+  /* ---------- банани ---------- */
+  let bananas = [], dist = 0, nextSpawn = 0, queue = [];
+  function spawn(x) {
+    const n = Math.random() < .15 ? 3 : 1;
+    const yMin = H * .17 + bs * .5, yMax = Math.max(yMin, groundY - 40 - mH * .73);
+    const b = { x, y: yMin + Math.random() * (yMax - yMin), n, state: "hang", el: document.createElement("div") };
+    b.el.className = "ban";
+    b.el.innerHTML = `<div class="sway" style="animation-delay:${-Math.random() * 2.6}s"><div class="vine"></div><button class="fruit" aria-label="${n === 1 ? "Банан" : "Гроно бананів"}">${bananaSVG(n)}</button></div>`;
+    b.el.querySelector(".fruit").addEventListener("pointerdown", e => { e.stopPropagation(); tapBanana(b); });
+    b.el.querySelector(".fruit").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tapBanana(b); } });
+    bananasEl.append(b.el); bananas.push(b); placeBanana(b);
+  }
+  function placeBanana(b) { b.el.style.transform = `translate(${b.x - bs / 2}px, 0)`; b.el.style.height = `${b.y + bs * .5}px`; }
+  function dropBanana(b) { b.state = "gone"; b.el.remove(); bananas = bananas.filter(o => o !== b); queue = queue.filter(o => o !== b); }
+
+  /* ---------- мавпочка: рух по дузі ---------- */
+  let mx = 0, my = 0, mv = null, heldN = 0, heldShown = false;
+  const lin = p => p, outQ = p => 1 - (1 - p) * (1 - p), inQ = p => p * p;
+  function move(tx, ty, T, arc, ex, ey, onEnd) { mv = { sx: mx, sy: my, tx, ty, T, arc, ex, ey, t: 0, onEnd }; }
+  function pose(p) { monkey.classList.toggle("run", p === "run"); monkey.classList.toggle("air", p === "air"); }
+  const JUMP = .62;
+
+  function tapBanana(b) {
+    audio();
+    if (b.state !== "hang") return;
+    b.state = "aim"; b.el.classList.add("aim");
+    if (mv) queue.push(b); else jumpTo(b);
+  }
+  function jumpTo(b) {
+    pose("air"); boing();
+    const tx = clamp(b.x - speed * JUMP, mW * .4, W - mW * .4);
+    move(tx, b.y + mH * .73, JUMP, H * .05, lin, outQ, () => grab(b));
+  }
+  function grab(b) {
+    if (b.state !== "aim") return fall();
+    b.state = "held"; b.el.classList.remove("aim"); b.el.classList.add("picked");
+    setTimeout(() => dropBanana(b), 400);
+    heldN += b.n; monkey.classList.add("hold"); pop();
+    const next = nextAim();
+    if (next) jumpTo(next); else fall();
+  }
+  function nextAim() {
+    while (queue.length) { const b = queue.shift(); if (b.state === "aim" && b.x - speed * JUMP > mW * .4) return b; if (b.state === "aim") { b.state = "hang"; b.el.classList.remove("aim"); } }
+    return null;
+  }
+  function fall() { move(homeX, groundY, .55, H * .03, lin, inQ, land); }
+  function land() {
+    thud();
+    if (heldN) { flyToGoal(heldN, mx, my - mH * .97); heldN = 0; monkey.classList.remove("hold"); hooray(); }
+    const next = nextAim();
+    if (next) jumpTo(next); else pose("run");
+  }
+  function hop() {
+    if (mv) return;
+    audio(); pose("air"); boing();
+    move(homeX, groundY, .5, H * .14, lin, lin, () => { thud(); pose("run"); });
+  }
+  stage.addEventListener("pointerdown", hop);
+  stage.addEventListener("contextmenu", e => e.preventDefault());
+
+  /* ---------- головний цикл ---------- */
+  let last = performance.now(), running = false;
+  const layers = [["clouds", .06], ["hills", .2], ["trees", .5], ["ground", 1], ["canopy", 1]].map(([id, f]) => [$("#" + id), f]);
+  function loop(now) {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    if (running) {
+      dist += speed * dt;
+      layers.forEach(([el, f]) => { el.style.backgroundPositionX = `${-dist * f}px`; });
+      if (dist >= nextSpawn) { spawn(W + bs); nextSpawn = dist + clamp(W * (.28 + Math.random() * .25), 170, 520); }
+      for (const b of [...bananas]) {
+        if (b.state === "gone") continue;
+        b.x -= speed * dt;
+        if (b.x < -bs * 2) dropBanana(b); else placeBanana(b);
+      }
+    }
+    if (mv) {
+      mv.t += dt;
+      const p = Math.min(1, mv.t / mv.T);
+      mx = mv.sx + (mv.tx - mv.sx) * mv.ex(p);
+      my = mv.sy + (mv.ty - mv.sy) * mv.ey(p) - mv.arc * 4 * p * (1 - p);
+      if (p >= 1) { const f = mv.onEnd; mv = null; f && f(); }
+    }
+    monkey.style.transform = `translate(${mx - mW / 2}px, ${my - mH}px)`;
+    requestAnimationFrame(loop);
+  }
+  function reset() {
+    measure();
+    bananas.slice().forEach(dropBanana); queue = []; mv = null; heldN = 0; monkey.classList.remove("hold");
+    mx = homeX; my = groundY; pose("run");
+    spawn(W * .55); spawn(W * .9);
+    nextSpawn = dist + W * .35;
+  }
+
+  /* ---------- звуки: синтезовані ---------- */
+  let ac = null, sound = true;
+  const audio = () => { if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } if (ac && ac.state === "suspended") ac.resume(); return ac; };
+  function tone(type, f1, f2, dur, vol = .2, when = 0) {
+    const a = audio(); if (!a || !sound) return;
+    const t = a.currentTime + when, o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.setValueAtTime(f1, t); o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + .05);
+  }
+  const boing = () => tone("sine", 240, 640, .26, .18);
+  const pop = () => { tone("triangle", 700, 1300, .09, .16); };
+  const thud = () => tone("sine", 200, 90, .14, .25);
+  const ding = () => { tone("sine", 880, 880, .12, .13); tone("sine", 1320, 1320, .18, .1, .07); };
+  const hooray = () => { tone("square", 520, 760, .12, .06); tone("square", 760, 480, .16, .06, .14); };   /* «у-а!» мавпочки */
+  const fanfare = () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone("triangle", f, f, .2, .15, i * .13));
+
+  /* ---------- старт ---------- */
+  drawGoal(); drawStars();
+  reset();
+  requestAnimationFrame(loop);
+  addEventListener("resize", reset);
+  $("#go").addEventListener("click", () => { audio(); hooray(); $("#start").hidden = true; running = true; last = performance.now(); });
+  $("#snd").addEventListener("pointerdown", e => e.stopPropagation());
+  $("#snd").addEventListener("click", () => { sound = !sound; $("#snd").textContent = sound ? "🔊" : "🔈"; $("#snd").setAttribute("aria-label", sound ? "Звук увімкнено" : "Звук вимкнено"); });
+})();
+</script>
